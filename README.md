@@ -6,6 +6,13 @@ A production-ready Machine Learning system that predicts customer churn risk usi
 * **Interactive User Interface:** Run `ui.py` locally to launch the Streamlit dashboard.
 * **Cloud API Documentation (Swagger UI):** **[👉 Test the Live API Here](https://customer-churn-prediction-api-1.onrender.com/docs)**
 
+## 🖥️ User Interface Preview
+### 🔴 High Churn Risk Scenario
+![Customer Churn Dashboard](ui_screenshot01.png)
+## 🖥️ User Interface Preview
+### 🟢 Low Churn Risk Scenario
+![Customer Churn Dashboard](ui_screenshot02.png)
+
 ---
 
 ## 🛠️ System Architecture & Evolution
