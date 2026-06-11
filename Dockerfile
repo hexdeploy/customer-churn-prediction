@@ -1,5 +1,5 @@
-# Step 1: Use an official lightweight Python runtime
-FROM python:3.11-slim
+# Step 1: Use the full official Python 3.11 image (includes build tools for modern dependencies)
+FROM python:3.11
 
 # Step 2: Set the working directory inside the container
 WORKDIR /app
@@ -16,5 +16,5 @@ COPY . .
 # Step 6: Expose the port that FastAPI will run on
 EXPOSE 8000
 
-# Step 7: Explicitly tell Uvicorn to look at the module path inside /app
+# Step 7: Run Uvicorn using explicit module layout execution
 CMD ["python", "-m", "uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
