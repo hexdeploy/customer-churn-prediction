@@ -1,25 +1,17 @@
+import os
+import joblib
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-import pandas as pd
-import joblib
-import uvicorn
 
-# Initialize the FastAPI Application
-app = FastAPI(title="Customer Churn Prediction API", version="1.0")
+# 1. Initialize FastAPI Application
+app = FastAPI(
+    title="Customer Churn Prediction API",
+    description="Production API endpoint to assess customer churn probability thresholds.",
+    version="1.0.0"
+)
 
-# --- Step 1: Load your saved ML Artifacts when the server boots up ---
-try:
-    model = joblib.load('best_churn_model.pkl')
-    scaler = joblib.load('numerical_scaler.pkl')
-    numerical_cols = joblib.load('numerical_cols_list.pkl')
-    model_features = joblib.load('model_features_order.pkl')
-    print("🎉 All ML artifacts loaded successfully! API is ready.")
-except Exception as e:
-    print(f"❌ Error loading model artifacts: {e}")
-    raise RuntimeError("Could not find or load serialization (.pkl) files.")
-
-# --- Step 2: Define the input structure (Data Validation) ---
-# This ensures that any incoming request matches the features of your original dataset.
+# 2. Define the Incoming Data Schema using Pydantic
 class CustomerData(BaseModel):
     gender: str
     SeniorCitizen: int
@@ -41,48 +33,48 @@ class CustomerData(BaseModel):
     MonthlyCharges: float
     TotalCharges: float
 
-@app.get("/")
-def home():
-    return {"message": "Customer Churn Prediction API is active. Go to /docs to test it!"}
+# 3. Load Pipeline Artifacts safely on Startup
+try:
+    model = joblib.load("best_churn_model.pkl")
+    model_features_order = joblib.load("model_features_order.pkl")
+    numerical_cols = joblib.load("numerical_cols_list.pkl")
+    scaler = joblib.load("numerical_scaler.pkl")
+except Exception as e:
+    raise RuntimeError(f"Failed to load core model artifact dependencies locally: {e}")
 
+# 4. Core Prediction Endpoint
 @app.post("/predict")
-def predict_churn(customer: CustomerData):
+async def predict_churn(data: CustomerData):
     try:
-        # 1. Convert incoming JSON request payload into a Pandas DataFrame
-        input_dict = customer.dict()
+        # Convert incoming JSON schema smoothly into a Pandas DataFrame
+        input_dict = data.model_dump()
         df_input = pd.DataFrame([input_dict])
         
-        # 2. Re-apply One-Hot Encoding just like we did in the training script
-        categorical_cols = df_input.select_dtypes(include=['object']).columns.tolist()
-        df_encoded = pd.get_dummies(df_input, columns=categorical_cols)
+        # Scale the numerical metrics precisely using the saved training scaler
+        df_input[numerical_cols] = scaler.transform(df_input[numerical_cols])
         
-        # 3. Structural Alignment (Crucial for API stability)
-        # Force the input data to have the exact columns in the exact order as training.
-        # If a category is missing for this single customer, it sets that column to 0.
-        for col in model_features:
-            if col not in df_encoded.columns:
-                df_encoded[col] = 0
-                
-        # Reorder columns to match the trained model's expectations perfectly
-        df_encoded = df_encoded[model_features]
+        # Apply One-Hot Encoding to match categorical pipeline dimensions
+        df_encoded = pd.get_dummies(df_input)
         
-        # 4. Scale the numerical columns using our saved scaler parameters
-        df_encoded[numerical_cols] = scaler.transform(df_encoded[numerical_cols])
+        # Reindex variables dynamically to align with training structural arrays
+        df_final = df_encoded.reindex(columns=model_features_order, fill_value=0)
         
-        # 5. Generate Inference / Predictions
-        prediction = model.predict(df_encoded)[0]
-        probability = model.predict_proba(df_encoded)[0][1]
+        # --- THE FIX: Extract Class 1 (Churn) Probability directly ---
+        all_probabilities = model.predict_proba(df_final)[0]
+        churn_probability = float(all_probabilities[1]) * 100
         
-        # 6. Return response payload
+        # Map output flag cleanly based on the math probability threshold
+        churn_prediction = 1 if churn_probability >= 50.0 else 0
+        
         return {
-            "churn_prediction": "Yes" if prediction == 1 else "No",
-            "churn_probability_percentage": round(float(probability) * 100, 2),
-            "status": "Success"
+            "churn_prediction": churn_prediction,
+            "churn_probability_percentage": round(churn_probability, 2)
         }
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference Engine Error: {str(e)}")
 
-if __name__ == "__main__":
-    # Launch the local Uvicorn web server
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+# Health checkpoint check
+@app.get("/")
+async def root():
+    return {"status": "healthy", "service": "Customer Churn API"}
