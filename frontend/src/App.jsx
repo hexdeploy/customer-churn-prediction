@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // Automatically shifts to your production domain or falls back to localhost during local dev
-const API_BASE_URL ="https://customer-churn-prediction-kappa-eight.vercel.app";
+const API_BASE_URL ="https://customer-churn-prediction-kappa-eight.vercel.app/api";
 
 export default function App() {
   // Authentication State
