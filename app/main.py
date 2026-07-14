@@ -29,6 +29,23 @@ app.add_middleware(
     allow_headers=["*"],        
 )
 
+@app.get("/api/metrics")
+async def get_metrics():
+    # ... your metrics logic ...
+    return {"status": "online"}
+
+# 2. Update your history route to look like this:
+@app.get("/api/history")
+async def get_history():
+    # ... your history logic ...
+    return []
+
+# 3. Update your predict route to look like this:
+@app.post("/api/predict/bulk")
+async def predict_bulk(data: dict):
+    # ... your predict logic ...
+    return {"prediction": "processed"}
+
 # 💾 Safe MongoDB Cloud Cluster Connection
 MONGO_URI = os.getenv("MONGO_URI")
 
