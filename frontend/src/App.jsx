@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
 // Automatically shifts to your production domain or falls back to localhost during local dev
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://customer-churn-prediction-theta-flame.vercel.app';
 
 export default function App() {
   // Authentication State
