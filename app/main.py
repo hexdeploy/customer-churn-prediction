@@ -1,46 +1,44 @@
+import os
+import csv
+import codecs
+import io
+from datetime import datetime
 from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import pymongo
-from datetime import datetime
-import csv
-import codecs
-import io
-import os
-from fastapi import FastAPI
-from pymongo import MongoClient
 from dotenv import load_dotenv
 
+# 🔒 Load secret keys from your local hidden .env file
 load_dotenv()
 
 app = FastAPI()
 
-# Fetch the secret URI safely from the environment
-MONGO_URI = os.getenv("MONGO_URI")
-client = MongoClient(MONGO_URI)
-db = client["churn-prediction"]
-
-app = FastAPI()
-
+# 🌐 Enable CORS for local testing and your future live portfolio URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],  # Adjust this to your specific live Vercel/Netlify URL once deployed
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-MONGO_URI = "mongodb+srv://akbileyali7090_db_user:TdhwkQ0c5BesYUCE@churn-prediction.r197zxv.mongodb.net/customer_churn?appName=churn-prediction"
+# 💾 Safe MongoDB Cloud Cluster Connection
+MONGO_URI = os.getenv("MONGO_URI")
+
+if not MONGO_URI:
+    print("❌ Critical Alert: MONGO_URI variable is completely missing from environment variables!")
 
 try:
     client = pymongo.MongoClient(MONGO_URI)
     db = client["customer_churn"]
     collection = db["predictions"]
-    print("✅ Successfully connected to MongoDB Atlas Cluster with Report Extensions!")
+    print("✅ Successfully connected to MongoDB Atlas safely via Env Variables!")
 except Exception as e:
     print(f"❌ MongoDB Connection Error: {e}")
 
+# 📋 Input Request Validation Data Structure
 class ChurnInput(BaseModel):
     customer_id: str
     tenure: int
@@ -48,6 +46,7 @@ class ChurnInput(BaseModel):
     senior_citizen: int
     notes: str
 
+# 📊 1. Get Live KPI Aggregated Cards Metrics
 @app.get("/metrics")
 async def get_metrics():
     try:
@@ -62,10 +61,13 @@ async def get_metrics():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# 🔮 2. Single Customer Inference Route
 @app.post("/predict")
 async def predict_churn(data: ChurnInput):
     try:
         notes_lower = data.notes.lower()
+        
+        # 1. Evaluate Risk Verdict and Churn Probabilities
         if any(k in notes_lower for k in ["outage", "cancel", "frustrated", "terminate"]):
             risk_verdict = "High Risk"
             churn_probability = 0.85 + (0.10 if data.senior_citizen == 1 else 0.0)
@@ -79,6 +81,7 @@ async def predict_churn(data: ChurnInput):
             churn_probability = 0.12
             base_sentiment = 0.75
 
+        # 2. Dynamic Sentiment Math Engine
         tenure_bonus = data.tenure * 0.005
         billing_penalty = min(0.10, (data.monthly_charges / 150.0) * 0.10)
         
@@ -103,6 +106,7 @@ async def predict_churn(data: ChurnInput):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# 🚀 3. Multi-Row Bulk CSV Pipeline Engine
 @app.post("/predict/bulk")
 async def predict_bulk(file: UploadFile = File(...)):
     try:
@@ -156,6 +160,7 @@ async def predict_bulk(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# 📋 4. Pull Complete MongoDB Cloud History Log List
 @app.get("/history")
 async def get_history():
     try:
@@ -163,6 +168,7 @@ async def get_history():
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+# 🗑️ 5. Delete an Individual Log Entry
 @app.delete("/history/{customer_id}")
 async def delete_history_item(customer_id: str):
     try:
@@ -173,16 +179,25 @@ async def delete_history_item(customer_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# 📊 NEW: Core Pipeline Execution Log to CSV Export Engine
+# 📥 6. Download Bulk CSV Format Template
+@app.get("/download-template")
+async def download_template():
+    headers = "customer_id,tenure,monthly_charges,senior_citizen,notes\n"
+    stream = io.StringIO(headers)
+    return StreamingResponse(
+        io.BytesIO(stream.getvalue().encode("utf-8")),
+        media_type="text/csv",
+        headers={"Content-Disposition": "attachment; filename=telecom_churn_template.csv"}
+    )
+
+# 📊 7. Core Pipeline Execution Log to CSV Export Engine
 @app.get("/export-results")
 async def export_results():
     try:
         records = list(collection.find({}, {"_id": 0}).sort("timestamp", -1))
-        
         output = io.StringIO()
         writer = csv.writer(output)
         
-        # Write CSV Header Layout
         writer.writerow(["Customer ID", "Tenure (Months)", "Monthly Charges", "Senior Citizen", "Risk Verdict", "Churn Probability", "Sentiment Score", "Processed Timestamp"])
         
         for doc in records:
@@ -205,16 +220,6 @@ async def export_results():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate CSV data pipeline dump: {str(e)}")
 
-@app.get("/download-template")
-async def download_template():
-    headers = "customer_id,tenure,monthly_charges,senior_citizen,notes\n"
-    stream = io.StringIO(headers)
-    return StreamingResponse(
-        io.BytesIO(stream.getvalue().encode("utf-8")),
-        media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=telecom_churn_template.csv"}
-    )
-
 @app.get("/")
 def read_root():
-    return {"status": "Online"}
+    return {"status": "Online", "engine": "FastAPI Telecom Secure Churn Pipeline"}
