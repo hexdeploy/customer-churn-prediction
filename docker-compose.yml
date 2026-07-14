@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # 1. FastAPI Web Server Application Layer
+  web:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - MONGO_URI=mongodb://mongodb:27017
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - mongodb
+      - redis
+
+  # 2. Database Layer (MongoDB Atlas Local Alternative)
+  mongodb:
+    image: mongo:6.0
+    container_name: churn_mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  # 3. Caching Layer
+  redis:
+    image: redis:7.0-alpine
+    container_name: churn_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  mongo_data:
+  redis_data:
