@@ -9,6 +9,18 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import pymongo
 from dotenv import load_dotenv
+import joblib
+
+# Find the exact absolute root path dynamically
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+# Safely point to the exact location of your .pkl files
+MODEL_PATH = os.path.join(BASE_DIR, "best_churn_model.pkl")
+COLS_PATH = os.path.join(BASE_DIR, "numerical_cols_list.pkl")
+
+# Load them using the corrected paths
+model = joblib.load(MODEL_PATH)
+columns = joblib.load(COLS_PATH)
 
 # 🔒 Load secret keys from your local hidden .env file
 load_dotenv()

@@ -5,3 +5,7 @@ pymongo==4.6.2
 dnspython==2.6.1
 python-dotenv==1.0.1
 python-multipart==0.0.19
+joblib
+scikit-learn
+pandas
+numpy
