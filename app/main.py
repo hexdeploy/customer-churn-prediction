@@ -15,13 +15,18 @@ load_dotenv()
 
 app = FastAPI()
 
+origins = [
+    "https://customer-churn-prediction-cyan-iota.vercel.app",  # Your live frontend domain
+    "http://localhost:5173",                                   # Your local React development server
+    "http://localhost:3000",
+]
 # 🌐 Enable CORS for local testing and your future live portfolio URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Adjust this to your specific live Vercel/Netlify URL once deployed
+    allow_origins=origins,       # Matches the list above
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],         # Allows GET, POST, DELETE, OPTIONS, etc.
+    allow_headers=["*"],         # Allows Content-Type, Authorization, etc.
 )
 
 # 💾 Safe MongoDB Cloud Cluster Connection
