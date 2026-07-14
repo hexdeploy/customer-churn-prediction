@@ -7,6 +7,19 @@ from datetime import datetime
 import csv
 import codecs
 import io
+import os
+from fastapi import FastAPI
+from pymongo import MongoClient
+from dotenv import load_dotenv
+
+load_dotenv()
+
+app = FastAPI()
+
+# Fetch the secret URI safely from the environment
+MONGO_URI = os.getenv("MONGO_URI")
+client = MongoClient(MONGO_URI)
+db = client["churn-prediction"]
 
 app = FastAPI()
 
