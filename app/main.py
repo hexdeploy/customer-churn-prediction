@@ -11,6 +11,9 @@ import pymongo
 from dotenv import load_dotenv
 import joblib
 
+# 🔒 Load secret keys
+load_dotenv()
+
 # Find the exact absolute root path dynamically
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -19,46 +22,33 @@ MODEL_PATH = os.path.join(BASE_DIR, "best_churn_model.pkl")
 COLS_PATH = os.path.join(BASE_DIR, "numerical_cols_list.pkl")
 
 # Load them using the corrected paths
-model = joblib.load(MODEL_PATH)
-columns = joblib.load(COLS_PATH)
+try:
+    model = joblib.load(MODEL_PATH)
+    columns = joblib.load(COLS_PATH)
+    print("✅ Successfully loaded model and column configurations!")
+except Exception as e:
+    print(f"⚠️ Warning loading pickle files locally: {e}. Attempting fallback path...")
+    # Fallback path if deployed directly in the root directory on Render
+    try:
+        model = joblib.load("best_churn_model.pkl")
+        columns = joblib.load("numerical_cols_list.pkl")
+        print("✅ Fallback load successful!")
+    except Exception as fallback_err:
+        print(f"❌ Critical failure: Unable to load pickle files! {fallback_err}")
 
-# 🔒 Load secret keys from your local hidden .env file
-load_dotenv()
+# Initialize standard FastAPI (NO root_path="/api" needed for Render!)
+app = FastAPI()
 
-app = FastAPI(root_path="/api")
-
-origins = [
-    "https://customer-churn-prediction-kappa-eight.vercel.app",  # Your live frontend domain
-    "http://localhost:5173",                                   # Your local React development server
-    "http://localhost:3000",
-]
-# 🌐 Enable CORS for local testing and your future live portfolio URL
+# 🌐 Enable CORS clean configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins temporarily to force the connection through
-    allow_credentials=False, # Must be False when using "*"
+    allow_origins=["*"],  # Allows all origins to bypass browser blocks seamlessly
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],        
 )
 
-@app.get("/api/metrics")
-async def get_metrics():
-    # ... your metrics logic ...
-    return {"status": "online"}
-
-# 2. Update your history route to look like this:
-@app.get("/api/history")
-async def get_history():
-    # ... your history logic ...
-    return []
-
-# 3. Update your predict route to look like this:
-@app.post("/api/predict/bulk")
-async def predict_bulk(data: dict):
-    # ... your predict logic ...
-    return {"prediction": "processed"}
-
-# 💾 Safe MongoDB Cloud Cluster Connection
+# 💾 MongoDB Cloud Cluster Connection
 MONGO_URI = os.getenv("MONGO_URI")
 
 if not MONGO_URI:
@@ -68,7 +58,7 @@ try:
     client = pymongo.MongoClient(MONGO_URI)
     db = client["customer_churn"]
     collection = db["predictions"]
-    print("✅ Successfully connected to MongoDB Atlas safely via Env Variables!")
+    print("✅ Successfully connected to MongoDB Atlas safely!")
 except Exception as e:
     print(f"❌ MongoDB Connection Error: {e}")
 
@@ -254,6 +244,7 @@ async def export_results():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate CSV data pipeline dump: {str(e)}")
 
+# Base Route
 @app.get("/")
 def read_root():
     return {"status": "Online", "engine": "FastAPI Telecom Secure Churn Pipeline"}
