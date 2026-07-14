@@ -141,7 +141,7 @@ export default function App() {
       <div style={{ backgroundColor: '#fdf2f8', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'sans-serif', color: '#1e293b', padding: '20px' }}>
         <div style={{ backgroundColor: '#ffffff', padding: '40px', borderRadius: '16px', width: '100%', maxWidth: '400px', boxShadow: '0 10px 30px rgba(219, 39, 119, 0.1)', border: '1px solid #fbcfe8' }}>
           <h2 style={{ textAlign: 'center', margin: '0 0 10px 0', color: '#db2777', fontWeight: '800' }}>{authMode === 'login' ? 'Account Login' : 'Create Account'}</h2>
-          <p style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', margin: '0 0 30px 0' }}>Sign in to access your Pink Churn Dashboard Engine</p>
+          <p style={{ textAlign: 'center', color: '#64748b', fontSize: '14px', margin: '0 0 30px 0' }}>Sign in to access Your Churn Dashboard Engine</p>
           <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {authMode === 'signup' && (
               <div>

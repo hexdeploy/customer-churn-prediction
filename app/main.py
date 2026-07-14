@@ -29,22 +29,6 @@ app.add_middleware(
     allow_headers=["*"],        
 )
 
-@app.middleware("http")
-async def add_custom_cors_headers(request: Request, call_next):
-    # If the browser is sending a preflight security check, reply directly
-    if request.method == "OPTIONS":
-        response = Response()
-    else:
-        response = await call_next(request)
-        
-    # Force inject the exact headers the browser is begging for
-    response.headers["Access-Control-Allow-Origin"] = "https://customer-churn-prediction-kappa-eight.vercel.app"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, PUT, DELETE, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    
-    return response
-
 # 💾 Safe MongoDB Cloud Cluster Connection
 MONGO_URI = os.getenv("MONGO_URI")
 
