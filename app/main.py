@@ -23,9 +23,9 @@ origins = [
 # 🌐 Enable CORS for local testing and your future live portfolio URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,      
-    allow_credentials=True,
-    allow_methods=["*"],         
+    allow_origins=["*"],  # Allows all origins temporarily to force the connection through
+    allow_credentials=False, # Must be False when using "*"
+    allow_methods=["*"],
     allow_headers=["*"],        
 )
 
