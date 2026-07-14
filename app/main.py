@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 # 🔒 Load secret keys from your local hidden .env file
 load_dotenv()
 
-app = FastAPI()
+app = FastAPI(root_path="/api")
 
 origins = [
     "https://customer-churn-prediction-kappa-eight.vercel.app",  # Your live frontend domain
