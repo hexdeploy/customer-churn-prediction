@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
+// Automatically shifts to your production domain or falls back to localhost during local dev
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+
 export default function App() {
   // Authentication State
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -28,7 +31,7 @@ export default function App() {
   const [historyLogs, setHistoryLogs] = useState([]);
   const [bulkFile, setBulkFile] = useState(null);
 
-  // 🔍 NEW: UI Live Log Searching & Filtering States
+  // 🔍 UI Live Log Searching & Filtering States
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRisk, setFilterRisk] = useState('All');
 
@@ -43,18 +46,18 @@ export default function App() {
   const lowPct = totalLogs ? Math.round((lowRiskCount / totalLogs) * 100) : 0;
 
   const avgTenure = totalLogs ? (historyLogs.reduce((acc, curr) => acc + curr.tenure, 0) / totalLogs).toFixed(1) : 0;
-  const avgCharges = totalLogs ? (historyLogs.reduce((acc, curr) => acc + curr.monthly_charges, 0) / totalLogs).toFixed(2) : "0.00";
+  const avgCharges = totalLogs ? (historyLogs.reduce((acc, curr) => acc + (parseFloat(curr.monthly_charges) || 0), 0) / totalLogs).toFixed(2) : "0.00";
 
-  // 🔍 NEW: Filtered History Logs Logic Computation
+  // 🔍 Filtered History Logs Logic Computation
   const filteredLogs = historyLogs.filter(log => {
-    const matchesSearch = log.customer_id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesSearch = log.customer_id ? log.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) : false;
     const matchesRiskDropdown = filterRisk === 'All' ? true : log.risk_verdict === filterRisk;
     return matchesSearch && matchesRiskDropdown;
   });
 
   const syncDashboardData = async () => {
     try {
-      const metricsResponse = await fetch('http://localhost:8000/metrics');
+      const metricsResponse = await fetch(`${API_BASE_URL}/metrics`);
       if (metricsResponse.ok) {
         const metricsData = await metricsResponse.json();
         setTotalEvaluates(metricsData.total_evals);
@@ -64,7 +67,7 @@ export default function App() {
         setSystemStatus('Offline');
       }
       
-      const historyResponse = await fetch('http://localhost:8000/history');
+      const historyResponse = await fetch(`${API_BASE_URL}/history`);
       if (historyResponse.ok) {
         const historyData = await historyResponse.json();
         setHistoryLogs(historyData);
@@ -91,7 +94,7 @@ export default function App() {
     setIsSingleProcessing(true);
 
     try {
-      const response = await fetch('http://localhost:8000/predict', {
+      const response = await fetch(`${API_BASE_URL}/predict`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -126,7 +129,7 @@ export default function App() {
   const handleDeleteItem = async (targetId) => {
     if (!confirm(`Are you sure you want to delete prediction logs for client: ${targetId}?`)) return;
     try {
-      const response = await fetch(`http://localhost:8000/history/${targetId}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE_URL}/history/${targetId}`, { method: 'DELETE' });
       if (response.ok) syncDashboardData();
     } catch (err) {
       console.error(err);
@@ -265,14 +268,14 @@ export default function App() {
 
             <div style={{ backgroundColor: '#ffffff', padding: '25px', borderRadius: '16px', border: '1px solid #fbcfe8' }}>
               <h3 style={{ margin: '0 0 10px 0', fontSize: '16px', color: '#1e293b', fontWeight: '800' }}>📊 Bulk Data Pipeline Upload</h3>
-              <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 15px 0' }}>Accepts telecom_churn.csv format. Don't have one? <a href="http://localhost:8000/download-template" download style={{ color: '#db2777', fontWeight: 'bold' }}>Download CSV Template</a></p>
+              <p style={{ fontSize: '12px', color: '#64748b', margin: '0 0 15px 0' }}>Accepts telecom_churn.csv format. Don't have one? <a href={`${API_BASE_URL}/download-template`} download style={{ color: '#db2777', fontWeight: 'bold' }}>Download CSV Template</a></p>
               <input type="file" accept=".csv" onChange={(e) => setBulkFile(e.target.files[0])} style={{ color: '#64748b', fontSize: '14px', width: '100%', marginBottom: '15px' }} />
               <button onClick={async () => {
                 if (!bulkFile) return alert("Please select a valid file first.");
                 const formData = new FormData(); formData.append("file", bulkFile);
                 try {
                   setIsBulkProcessing(true);
-                  const res = await fetch("http://localhost:8000/predict/bulk", { method: "POST", body: formData });
+                  const res = await fetch(`${API_BASE_URL}/predict/bulk`, { method: "POST", body: formData });
                   if (res.ok) { alert("Bulk Pipeline Execution Successful!"); setBulkFile(null); syncDashboardData(); }
                 } catch (err) { console.error(err); } finally { setIsBulkProcessing(false); }
               }} disabled={isBulkProcessing} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: 'none', backgroundColor: isBulkProcessing ? '#94a3b8' : '#1e293b', color: '#fff', fontWeight: 'bold', cursor: 'pointer' }}>
@@ -323,7 +326,7 @@ export default function App() {
               <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: '#64748b' }}>Showing {filteredLogs.length} of {historyLogs.length} logged pipeline analytics rows.</p>
             </div>
             
-            {/* 🔍 NEW: Live Interactive Query Filters Action Bar */}
+            {/* Live Interactive Query Filters Action Bar */}
             <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
               <input 
                 type="text" 
@@ -343,9 +346,9 @@ export default function App() {
                 <option value="Low Risk">Low Risk</option>
               </select>
 
-              {/* 📊 NEW: Management CSV Downloader Hook */}
+              {/* Management CSV Downloader Hook */}
               <a 
-                href="http://localhost:8000/export-results"
+                href={`${API_BASE_URL}/export-results`}
                 style={{ backgroundColor: '#1e293b', color: '#fff', padding: '8px 14px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold', textDecoration: 'none', display: 'inline-block' }}
               >
                 📥 Export CSV Report
@@ -373,12 +376,12 @@ export default function App() {
                     <td colSpan="7" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>No active inference pipeline evaluations found matching current filter query parameters.</td>
                   </tr>
                 ) : (
-                  filteredLogs.map((log, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
+                  filteredLogs.map((log) => (
+                    <tr key={log.customer_id} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
                       <td style={{ padding: '14px 20px', fontFamily: 'monospace', color: '#db2777', fontWeight: 'bold' }}>{log.customer_id}</td>
                       <td style={{ padding: '14px 20px' }}>{log.tenure} mo</td>
-                      <td style={{ padding: '14px 20px', fontWeight: '600' }}>${log.monthly_charges.toFixed(2)}</td>
-                      <td style={{ padding: '14px 20px', fontWeight: 'bold' }}>{(log.churn_probability * 100).toFixed(1)}%</td>
+                      <td style={{ padding: '14px 20px', fontWeight: '600' }}>${(log.monthly_charges || 0).toFixed(2)}</td>
+                      <td style={{ padding: '14px 20px', fontWeight: 'bold' }}>{((log.churn_probability || 0) * 100).toFixed(1)}%</td>
                       <td style={{ padding: '14px 20px' }}>
                         <span style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold', backgroundColor: log.risk_verdict === 'High Risk' ? '#ffe4e6' : log.risk_verdict === 'Moderate Risk' ? '#fef3c7' : '#d1fae5', color: log.risk_verdict === 'High Risk' ? '#f43f5e' : log.risk_verdict === 'Moderate Risk' ? '#d97706' : '#10b981' }}>
                           {log.risk_verdict}
