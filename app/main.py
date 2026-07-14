@@ -23,10 +23,10 @@ origins = [
 # 🌐 Enable CORS for local testing and your future live portfolio URL
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,       # Matches the list above
-    allow_credentials=False,
-    allow_methods=["*"],         # Allows GET, POST, DELETE, OPTIONS, etc.
-    allow_headers=["*"],         # Allows Content-Type, Authorization, etc.
+    allow_origins=origins,      
+    allow_credentials=True,
+    allow_methods=["*"],         
+    allow_headers=["*"],        
 )
 
 # 💾 Safe MongoDB Cloud Cluster Connection
