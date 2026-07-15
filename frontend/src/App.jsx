@@ -50,8 +50,19 @@ export default function App() {
 
   // 🔍 Filtered History Logs Logic Computation
   const filteredLogs = historyLogs.filter(log => {
-    const matchesSearch = log.customer_id ? log.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) : false;
-    const matchesRiskDropdown = filterRisk === 'All' ? true : log.risk_verdict === filterRisk;
+    // 1. Search Term matching (case-insensitive)
+    const matchesSearch = log.customer_id 
+      ? log.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) 
+      : false;
+
+    // 2. Risk Dropdown matching (case and whitespace-insensitive)
+    const normalizedVerdict = (log.risk_verdict || '').toLowerCase().trim();
+    const normalizedFilter = filterRisk.toLowerCase().trim();
+    
+    const matchesRiskDropdown = filterRisk === 'All' 
+      ? true 
+      : normalizedVerdict === normalizedFilter;
+
     return matchesSearch && matchesRiskDropdown;
   });
 
