@@ -50,18 +50,23 @@ export default function App() {
 
   // 🔍 Filtered History Logs Logic Computation
   const filteredLogs = historyLogs.filter(log => {
-    // 1. Search Term matching (case-insensitive)
-    const matchesSearch = log.customer_id 
-      ? log.customer_id.toLowerCase().includes(searchTerm.toLowerCase()) 
-      : false;
+    // 1. If search input is blank, match everything. Otherwise, look for matching Client IDs.
+    const cleanSearch = searchTerm.trim().toLowerCase();
+    const matchesSearch = cleanSearch === '' 
+      ? true 
+      : log.customer_id ? log.customer_id.toLowerCase().includes(cleanSearch) : false;
 
-    // 2. Risk Dropdown matching (case and whitespace-insensitive)
-    const normalizedVerdict = (log.risk_verdict || '').toLowerCase().trim();
-    const normalizedFilter = filterRisk.toLowerCase().trim();
+    // 2. Normalize both dropdown values and database string variations to handle discrepancies
+    const cleanLogVerdict = (log.risk_verdict || '').toLowerCase().trim();
     
+    let targetFilterValue = filterRisk.toLowerCase().trim();
+    if (targetFilterValue.includes('high')) targetFilterValue = 'high risk';
+    if (targetFilterValue.includes('moderate')) targetFilterValue = 'moderate risk';
+    if (targetFilterValue.includes('low')) targetFilterValue = 'low risk';
+
     const matchesRiskDropdown = filterRisk === 'All' 
       ? true 
-      : normalizedVerdict === normalizedFilter;
+      : cleanLogVerdict === targetFilterValue;
 
     return matchesSearch && matchesRiskDropdown;
   });
