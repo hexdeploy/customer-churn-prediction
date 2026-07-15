@@ -34,6 +34,15 @@ export default function App() {
   // 🔍 UI Live Log Searching & Filtering States
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRisk, setFilterRisk] = useState('All');
+  
+  const formatLocalTimestamp = (timestamp) => {
+    if (!timestamp) {
+      return new Date().toLocaleString(); // Fallback to current local time if database timestamp is empty
+    }
+    const date = new Date(timestamp);
+    // If it's an invalid date string, return it raw; otherwise format it beautifully
+    return isNaN(date.getTime()) ? timestamp : date.toLocaleString();
+  };
 
   // --- 📊 LOCAL EDA CALCULATIONS FROM MONGO LOGS ---
   const totalLogs = historyLogs.length;
@@ -50,23 +59,23 @@ export default function App() {
 
   // 🔍 Filtered History Logs Logic Computation
   const filteredLogs = historyLogs.filter(log => {
-    // 1. If search input is blank, match everything. Otherwise, look for matching Client IDs.
+    // 1. Search Term matching (case-insensitive)
     const cleanSearch = searchTerm.trim().toLowerCase();
     const matchesSearch = cleanSearch === '' 
       ? true 
       : log.customer_id ? log.customer_id.toLowerCase().includes(cleanSearch) : false;
 
-    // 2. Normalize both dropdown values and database string variations to handle discrepancies
-    const cleanLogVerdict = (log.risk_verdict || '').toLowerCase().trim();
+    // 2. Risk Dropdown matching (case-insensitive, matching 'High Risk Only' to 'High Risk')
+    const logVerdict = (log.risk_verdict || '').toLowerCase().trim();
+    let filterVal = filterRisk.toLowerCase().trim();
     
-    let targetFilterValue = filterRisk.toLowerCase().trim();
-    if (targetFilterValue.includes('high')) targetFilterValue = 'high risk';
-    if (targetFilterValue.includes('moderate')) targetFilterValue = 'moderate risk';
-    if (targetFilterValue.includes('low')) targetFilterValue = 'low risk';
+    if (filterVal.includes('high')) filterVal = 'high risk';
+    if (filterVal.includes('moderate')) filterVal = 'moderate risk';
+    if (filterVal.includes('low')) filterVal = 'low risk';
 
     const matchesRiskDropdown = filterRisk === 'All' 
       ? true 
-      : cleanLogVerdict === targetFilterValue;
+      : logVerdict === filterVal;
 
     return matchesSearch && matchesRiskDropdown;
   });
@@ -403,7 +412,9 @@ export default function App() {
                           {log.risk_verdict}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 20px', fontSize: '12px', color: '#64748b' }}>{log.timestamp}</td>
+                      <td style={{ padding: '14px 20px', fontSize: '12px', color: '#64748b' }}>
+                        {formatLocalTimestamp(log.timestamp)}
+                      </td>
                       <td style={{ padding: '14px 20px', textAlign: 'center' }}>
                         <button onClick={() => handleDeleteItem(log.customer_id)} style={{ backgroundColor: 'transparent', border: 'none', color: '#f43f5e', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>✕ Delete</button>
                       </td>
