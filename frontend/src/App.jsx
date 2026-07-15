@@ -34,7 +34,7 @@ export default function App() {
   // 🔍 UI Live Log Searching & Filtering States
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRisk, setFilterRisk] = useState('All');
-  
+
   const formatLocalTimestamp = (timestamp) => {
     if (!timestamp) {
       return new Date().toLocaleString(); // Fallback to current local time if database timestamp is empty
@@ -58,14 +58,22 @@ export default function App() {
   const avgCharges = totalLogs ? (historyLogs.reduce((acc, curr) => acc + (parseFloat(curr.monthly_charges) || 0), 0) / totalLogs).toFixed(2) : "0.00";
 
   // 🔍 Filtered History Logs Logic Computation
-  const filteredLogs = historyLogs.filter(log => {
-    // 1. Search Term matching (case-insensitive)
+  // 1. Sort historyLogs by timestamp in descending order
+  const sortedLogs = [...historyLogs].sort((a, b) => {
+    const dateA = a.timestamp ? new Date(a.timestamp) : new Date(0);
+    const dateB = b.timestamp ? new Date(b.timestamp) : new Date(0);
+    return dateB - dateA; // Newest first
+  });
+
+  // 2. Compute filteredLogs based on the sorted list
+  const filteredLogs = sortedLogs.filter(log => {
+    // Search Term matching
     const cleanSearch = searchTerm.trim().toLowerCase();
     const matchesSearch = cleanSearch === '' 
       ? true 
       : log.customer_id ? log.customer_id.toLowerCase().includes(cleanSearch) : false;
 
-    // 2. Risk Dropdown matching (case-insensitive, matching 'High Risk Only' to 'High Risk')
+    // Risk Dropdown matching
     const logVerdict = (log.risk_verdict || '').toLowerCase().trim();
     let filterVal = filterRisk.toLowerCase().trim();
     
@@ -398,30 +406,37 @@ export default function App() {
               <tbody>
                 {filteredLogs.length === 0 ? (
                   <tr>
-                    <td colSpan="7" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>No active inference pipeline evaluations found matching current filter query parameters.</td>
+                    <td colSpan="7" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
+                      No active evaluations found matching current filter.
+                    </td>
                   </tr>
                 ) : (
                   filteredLogs.map((log) => (
-                    <tr key={log.customer_id} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
-                      <td style={{ padding: '14px 20px', fontFamily: 'monospace', color: '#db2777', fontWeight: 'bold' }}>{log.customer_id}</td>
+                    <tr key={log._id || log.customer_id + log.timestamp} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
+                      <td style={{ padding: '14px 20px', fontWeight: 'bold', color: '#be185d' }}>{log.customer_id || 'UNKNOWN'}</td>
                       <td style={{ padding: '14px 20px' }}>{log.tenure} mo</td>
-                      <td style={{ padding: '14px 20px', fontWeight: '600' }}>${(log.monthly_charges || 0).toFixed(2)}</td>
-                      <td style={{ padding: '14px 20px', fontWeight: 'bold' }}>{((log.churn_probability || 0) * 100).toFixed(1)}%</td>
+                      <td style={{ padding: '14px 20px', fontWeight: '600' }}>${log.monthly_charges}</td>
+                      <td style={{ padding: '14px 20px', fontWeight: 'bold' }}>{log.churn_probability}%</td>
                       <td style={{ padding: '14px 20px' }}>
-                        <span style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '12px', fontWeight: 'bold', backgroundColor: log.risk_verdict === 'High Risk' ? '#ffe4e6' : log.risk_verdict === 'Moderate Risk' ? '#fef3c7' : '#d1fae5', color: log.risk_verdict === 'High Risk' ? '#f43f5e' : log.risk_verdict === 'Moderate Risk' ? '#d97706' : '#10b981' }}>
+                        <span className={`badge ${
+                          (log.risk_verdict || '').toLowerCase().includes('high') ? 'badge-high' :
+                          (log.risk_verdict || '').toLowerCase().includes('moderate') ? 'badge-moderate' : 'badge-low'
+                        }`}>
                           {log.risk_verdict}
                         </span>
                       </td>
                       <td style={{ padding: '14px 20px', fontSize: '12px', color: '#64748b' }}>
                         {formatLocalTimestamp(log.timestamp)}
                       </td>
-                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
-                        <button onClick={() => handleDeleteItem(log.customer_id)} style={{ backgroundColor: 'transparent', border: 'none', color: '#f43f5e', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}>✕ Delete</button>
+                      <td style={{ padding: '14px 20px' }}>
+                        <button onClick={() => handleDelete(log._id || log.customer_id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
+                          ✕ Delete
+                        </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
+                 ))
+              )}
+            </tbody>
             </table>
           </div>
         </div>
