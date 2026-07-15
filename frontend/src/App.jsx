@@ -35,20 +35,23 @@ export default function App() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterRisk, setFilterRisk] = useState('All');
 
-  const formatLocalTimestamp = (timestamp) => {
-    if (!timestamp) {
-      return new Date().toLocaleString(); // Fallback to current local time if database timestamp is empty
+  // --- 🕒 LOCAL TIME FORMATTER (FOR ACCURATE TIMESTAMP) ---
+  const formatLocalTimestamp = (timestampString) => {
+    if (!timestampString) return new Date().toLocaleString();
+    
+    // Parse the date. If it's a raw ISO string from Python/MongoDB, this converts it to your computer's local timezone.
+    const parsedDate = new Date(timestampString);
+    if (isNaN(parsedDate.getTime())) {
+      return timestampString; // Return as-is if parsing fails
     }
-    const date = new Date(timestamp);
-    // If it's an invalid date string, return it raw; otherwise format it beautifully
-    return isNaN(date.getTime()) ? timestamp : date.toLocaleString();
+    return parsedDate.toLocaleString();
   };
 
   // --- 📊 LOCAL EDA CALCULATIONS FROM MONGO LOGS ---
   const totalLogs = historyLogs.length;
-  const highRiskCount = historyLogs.filter(log => log.risk_verdict === 'High Risk').length;
-  const modRiskCount = historyLogs.filter(log => log.risk_verdict === 'Moderate Risk').length;
-  const lowRiskCount = historyLogs.filter(log => log.risk_verdict === 'Low Risk').length;
+  const highRiskCount = historyLogs.filter(log => (log.risk_verdict || '').trim().toLowerCase() === 'high risk').length;
+  const modRiskCount = historyLogs.filter(log => (log.risk_verdict || '').trim().toLowerCase() === 'moderate risk').length;
+  const lowRiskCount = historyLogs.filter(log => (log.risk_verdict || '').trim().toLowerCase() === 'low risk').length;
 
   const highPct = totalLogs ? Math.round((highRiskCount / totalLogs) * 100) : 0;
   const modPct = totalLogs ? Math.round((modRiskCount / totalLogs) * 100) : 0;
@@ -57,23 +60,23 @@ export default function App() {
   const avgTenure = totalLogs ? (historyLogs.reduce((acc, curr) => acc + curr.tenure, 0) / totalLogs).toFixed(1) : 0;
   const avgCharges = totalLogs ? (historyLogs.reduce((acc, curr) => acc + (parseFloat(curr.monthly_charges) || 0), 0) / totalLogs).toFixed(2) : "0.00";
 
-  // 🔍 Filtered History Logs Logic Computation
-  // 1. Sort historyLogs by timestamp in descending order
+  // --- 🔍 ROBUST FILTERED & SORTED HISTORY LOGS LOGIC ---
+  // 1. Sort historyLogs so the newest evaluations always show up at the top
   const sortedLogs = [...historyLogs].sort((a, b) => {
     const dateA = a.timestamp ? new Date(a.timestamp) : new Date(0);
     const dateB = b.timestamp ? new Date(b.timestamp) : new Date(0);
     return dateB - dateA; // Newest first
   });
 
-  // 2. Compute filteredLogs based on the sorted list
+  // 2. Filter down based on selection
   const filteredLogs = sortedLogs.filter(log => {
-    // Search Term matching
+    // Search Term matching (case-insensitive)
     const cleanSearch = searchTerm.trim().toLowerCase();
     const matchesSearch = cleanSearch === '' 
       ? true 
       : log.customer_id ? log.customer_id.toLowerCase().includes(cleanSearch) : false;
 
-    // Risk Dropdown matching
+    // Risk Dropdown matching (case and whitespace-insensitive)
     const logVerdict = (log.risk_verdict || '').toLowerCase().trim();
     let filterVal = filterRisk.toLowerCase().trim();
     
@@ -159,11 +162,18 @@ export default function App() {
     }
   };
 
+  // --- ✕ DELETE LOG HANDLER ---
   const handleDeleteItem = async (targetId) => {
     if (!confirm(`Are you sure you want to delete prediction logs for client: ${targetId}?`)) return;
     try {
+      // Deletes the record in MongoDB and synchronizes the frontend immediately
       const response = await fetch(`${API_BASE_URL}/history/${targetId}`, { method: 'DELETE' });
-      if (response.ok) syncDashboardData();
+      if (response.ok) {
+        // Instantly sync layout so it disappears right away
+        syncDashboardData();
+      } else {
+        alert("Failed to delete log from database. Please try again.");
+      }
     } catch (err) {
       console.error(err);
     }
@@ -407,36 +417,49 @@ export default function App() {
                 {filteredLogs.length === 0 ? (
                   <tr>
                     <td colSpan="7" style={{ padding: '30px', textAlign: 'center', color: '#94a3b8', fontStyle: 'italic' }}>
-                      No active evaluations found matching current filter.
+                      No active inference pipeline evaluations found matching current filter query parameters.
                     </td>
                   </tr>
                 ) : (
                   filteredLogs.map((log) => (
-                    <tr key={log._id || log.customer_id + log.timestamp} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
-                      <td style={{ padding: '14px 20px', fontWeight: 'bold', color: '#be185d' }}>{log.customer_id || 'UNKNOWN'}</td>
+                    <tr key={log.customer_id || log._id} style={{ borderBottom: '1px solid #f1f5f9', color: '#334155' }}>
+                      <td style={{ padding: '14px 20px', fontFamily: 'monospace', color: '#db2777', fontWeight: 'bold' }}>
+                        {log.customer_id}
+                      </td>
                       <td style={{ padding: '14px 20px' }}>{log.tenure} mo</td>
-                      <td style={{ padding: '14px 20px', fontWeight: '600' }}>${log.monthly_charges}</td>
-                      <td style={{ padding: '14px 20px', fontWeight: 'bold' }}>{log.churn_probability}%</td>
+                      <td style={{ padding: '14px 20px', fontWeight: '600' }}>
+                        ${(log.monthly_charges || 0).toFixed(2)}
+                      </td>
+                      <td style={{ padding: '14px 20px', fontWeight: 'bold' }}>
+                        {((log.churn_probability || 0) * 100).toFixed(1)}%
+                      </td>
                       <td style={{ padding: '14px 20px' }}>
-                        <span className={`badge ${
-                          (log.risk_verdict || '').toLowerCase().includes('high') ? 'badge-high' :
-                          (log.risk_verdict || '').toLowerCase().includes('moderate') ? 'badge-moderate' : 'badge-low'
-                        }`}>
+                        <span style={{ 
+                          fontSize: '12px', 
+                          padding: '3px 8px', 
+                          borderRadius: '12px', 
+                          fontWeight: 'bold', 
+                          backgroundColor: (log.risk_verdict || '').toLowerCase().trim() === 'high risk' ? '#ffe4e6' : (log.risk_verdict || '').toLowerCase().trim() === 'moderate risk' ? '#fef3c7' : '#d1fae5', 
+                          color: (log.risk_verdict || '').toLowerCase().trim() === 'high risk' ? '#f43f5e' : (log.risk_verdict || '').toLowerCase().trim() === 'moderate risk' ? '#d97706' : '#10b981' 
+                        }}>
                           {log.risk_verdict}
                         </span>
                       </td>
                       <td style={{ padding: '14px 20px', fontSize: '12px', color: '#64748b' }}>
                         {formatLocalTimestamp(log.timestamp)}
                       </td>
-                      <td style={{ padding: '14px 20px' }}>
-                        <button onClick={() => handleDelete(log._id || log.customer_id)} style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      <td style={{ padding: '14px 20px', textAlign: 'center' }}>
+                        <button 
+                          onClick={() => handleDeleteItem(log.customer_id)} 
+                          style={{ backgroundColor: 'transparent', border: 'none', color: '#f43f5e', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px' }}
+                        >
                           ✕ Delete
                         </button>
                       </td>
                     </tr>
-                 ))
-              )}
-            </tbody>
+                  ))
+                )}
+              </tbody>
             </table>
           </div>
         </div>
